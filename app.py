@@ -2,6 +2,7 @@ import sqlite3
 from openai import OpenAI
 import os
 import json
+import streamlit as st
 
 conn = sqlite3.connect('data/Chinook.db')
 
@@ -71,24 +72,39 @@ client = OpenAI(
     api_key=os.environ.get("OPENAPI_API_KEY")
 )
 
-chat_completion = client.chat.completions.create(
-    messages=[
-        {
-            "role": "system",
-            "content": "Answer user questions by generating SQL queries"
-        },
-        {
-            "role": "user",
-            "content": "What is the name of the album with the most tracks?"
-        }
-    ], 
-    model="gpt-3.5-turbo",
-    tools=tools
-)
+def generate_sql_query(query):
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {
+                "role": "system",
+                "content": "Answer user questions by generating SQL queries"
+            },
+            {
+                "role": "user",
+                "content": query
+            }
+        ], 
+        model="gpt-3.5-turbo",
+        tools=tools
+    )
 
-tool_call = chat_completion.choices[0].message.tool_calls[0]
+    tool_call = chat_completion.choices[0].message.tool_calls[0]
 
-if tool_call.function.name == 'ask_database':
     query = json.loads(tool_call.function.arguments)["query"]
-    result = ask_database(query)
-    print(result)
+    return query
+
+# Streamlit UI
+st.title('🗃️ GPT-powered SQL Query Generator')
+
+# Taking user input for query generation
+user_query = st.text_input("Enter your question:", "What is the name of the album with the most tracks?")
+
+if st.button('Generate SQL Query'):
+    # Assuming you have a function that uses GPT to generate the SQL query
+    generated_sql_query = generate_sql_query(user_query)
+
+    st.text('Generated SQL Query:')
+    st.code(generated_sql_query, language='sql')
+    result = ask_database(generated_sql_query)
+    st.subheader('Query Result:')
+    st.text(result)
